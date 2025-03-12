@@ -1,56 +1,42 @@
 pipeline {
-    agent any
-    
-    environment {
-        AWS_REGION = 'ap-southeast-1'
-        TF_VERSION = '1.1.5'
-        S3_BUCKET = 'my-static-content-bucket'
-        TF_STATE_BUCKET = 'my-terraform-state-bucket'
+  agent any
+
+  environment {
+    AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
+    AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        git 'https://github.com/your-repo/aws-terraform-jenkins-pipeline.git'
+      }
     }
-    
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
 
-        stage('Initialize Terraform') {
-            steps {
-                script {
-                    sh 'terraform init -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="region=${AWS_REGION}"'
-                }
-            }
-        }
-
-        stage('Plan Terraform') {
-            steps {
-                script {
-                    sh 'terraform plan -out=tfplan'
-                }
-            }
-        }
-
-        stage('Apply Terraform') {
-            steps {
-                script {
-                    sh 'terraform apply -auto-approve tfplan'
-                }
-            }
-        }
-
-        stage('Destroy Terraform') {
-            steps {
-                script {
-                    sh 'terraform destroy -auto-approve'
-                }
-            }
-        }
+    stage('Terraform Init') {
+      steps {
+        sh 'terraform init'
+      }
     }
-    
-    post {
-        always {
-            cleanWs()
-        }
+
+    stage('Terraform Plan') {
+      steps {
+        sh 'terraform plan'
+      }
     }
+
+    stage('Terraform Apply') {
+      steps {
+        input message: 'Approve Terraform Apply?', ok: 'Apply'
+        sh 'terraform apply -auto-approve'
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        echo 'Deploying application to AWS'
+        // Add deployment scripts here
+      }
+    }
+  }
 }
